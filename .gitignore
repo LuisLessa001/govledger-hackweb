@@ -1,0 +1,48 @@
+# =========================
+# GERAL, EDITOR & SEGURANÇA
+# =========================
+.env
+.env.local
+.DS_Store
+.vscode/
+.builder/
+console-exports/
+BackupDosComponentes/
+
+# =========================
+# FRONTEND (Next.js / Node)
+# =========================
+govledger-frontend/node_modules/
+govledger-frontend/.next/
+govledger-frontend/out/
+govledger-frontend/build/
+npm-debug.log*
+
+# =========================
+# BACKEND (Rust / Cargo)
+# =========================
+govledger-backend/target/
+**/*.rs.bk
+
+# =========================
+# CONTRACTS (Foundry / Solidity)
+# =========================
+govledger-contracts/broadcast/
+govledger-contracts/cache/
+govledger-contracts/out/
+
+# =========================
+# IGNORAR ARQUIVOS DO WINDOWS
+# =========================
+**/*Zone.Identifier
+
+# =========================
+# BACKUPS E PLANEJAMENTO LOCAIS
+# =========================
+govledger-frontend/Planos/
+govledger-frontend/src/app/Backup-frontend/
+
+# =========================
+# ARTEFATOS ANTIGOS/LOCAIS DE CONTRATO
+# =========================
+govledger-contracts/ignition/deployments/

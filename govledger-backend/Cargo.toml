@@ -1,0 +1,16 @@
+[package]
+name = "govledger-backend"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+# Framework Web e Runtime Assíncrono (Atualizados para as versões de 2026)
+axum = "0.8.9"
+tokio = { version = "1.52.3", features = ["full"] }
+
+# Serialização de JSON (A versão 1.0 continua sendo o padrão ouro)
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# Regras de CORS (Atualizado para a versão mais segura)
+tower-http = { version = "0.6.11", features = ["cors"] }
