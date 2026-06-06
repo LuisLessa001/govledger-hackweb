@@ -1,15 +1,21 @@
-use axum::{routing::post, Router, Json};
+use axum::{extract::State, routing::post, Json, Router};
 use serde::{Deserialize, Serialize};
-use tower_http::cors::CorsLayer;
-use std::net::SocketAddr;
+use std::{
+    collections::HashMap,
+    net::SocketAddr,
+    sync::{Arc, RwLock},
+};
+use tower_http::cors::{Any, CorsLayer};
 
-#[derive(Deserialize)]
+// 1. Definição das Estruturas de Dados
+#[derive(Deserialize, Debug)]
 struct PedidoAvaliacao {
     empresa: String,
     numero_edital: String,
     valor_solicitado: f64,
     obras_concluidas: f64,
     atrasos_anteriores: f64,
+    valor_staking: f64,
 }
 
 #[derive(Serialize)]
@@ -20,51 +26,81 @@ struct RespostaAvaliacao {
     mensagem: String,
 }
 
-// Constantes do Modelo Q-Learning (Sintaxe corrigida)
+// 2. Estado compartilhado para persistência da memória do agente
+struct AppState {
+    // HashMap que associa nome da empresa a seu histórico de Q-Value
+    history: RwLock<HashMap<String, f64>>,
+}
+
+// Constantes do Modelo Q-Learning
 const TAXA_APRENDIZADO: f64 = 0.1;
 const FATOR_DESCONTO: f64 = 0.9;
 const PENALIDADE_ATRASO: f64 = -50.0;
 const RECOMPENSA_CONCLUSAO: f64 = 20.0;
 
-async fn avaliar_risco(Json(payload): Json<PedidoAvaliacao>) -> Json<RespostaAvaliacao> {
-    println!("Iniciando inferência RL para a empresa: {}", payload.empresa);
+#[tokio::main]
+async fn main() {
+    // Inicialização do estado
+    let shared_state = Arc::new(AppState {
+        history: RwLock::new(HashMap::new()),
+    });
 
-    // Estado inicial simulado (Q-Value anterior)
-    let q_value_anterior = 50.0; 
+    // Configuração de CORS (Essencial para o Next.js conectar)
+    let cors = CorsLayer::new()
+        .allow_origin(Any)
+        .allow_methods(Any)
+        .allow_headers(Any);
 
-    // Cálculo da Recompensa Imediata baseada no ambiente (histórico da empresa)
-    let recompensa_imediata = (payload.obras_concluidas * RECOMPENSA_CONCLUSAO) 
-                            + (payload.atrasos_anteriores * PENALIDADE_ATRASO);
+    // Definição das rotas
+    let app = Router::new()
+        .route("/api/v1/analyze", post(avaliar_risco))
+        .layer(cors)
+        .with_state(shared_state);
 
-    // Aplicação da Equação de Bellman para atualizar a política de risco
+    let addr = SocketAddr::from(([0, 0, 0, 0], 3000));
+    println!(">>> GovLedger Backend rodando em http://{}", addr);
+
+    let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
+    axum::serve(listener, app).await.unwrap();
+}
+
+async fn avaliar_risco(
+    State(state): State<Arc<AppState>>,
+    Json(payload): Json<PedidoAvaliacao>,
+) -> Json<RespostaAvaliacao> {
+    println!(">>> Processando inferência RL para: {}", payload.empresa);
+
+    // Recupera o histórico da empresa ou usa o valor padrão (50.0)
+    let q_value_anterior = {
+        let history = state.history.read().unwrap();
+        *history.get(&payload.empresa).unwrap_or(&50.0)
+    };
+
+    // Lógica da Equação de Bellman
+    let recompensa_imediata = (payload.obras_concluidas * RECOMPENSA_CONCLUSAO)
+        + (payload.atrasos_anteriores * PENALIDADE_ATRASO);
+
     let estimativa_futura = if recompensa_imediata > 0.0 { 100.0 } else { 0.0 };
     
-    let novo_q_value = q_value_anterior + TAXA_APRENDIZADO * (recompensa_imediata + (FATOR_DESCONTO * estimativa_futura) - q_value_anterior);
+    let novo_q_value = q_value_anterior 
+        + TAXA_APRENDIZADO * (recompensa_imediata + (FATOR_DESCONTO * estimativa_futura) - q_value_anterior);
 
-    // Normalização do Score (0 a 100)
+    // Atualiza o estado compartilhado com o novo conhecimento do agente
+    {
+        let mut history = state.history.write().unwrap();
+        history.insert(payload.empresa.clone(), novo_q_value);
+    }
+
     let score_final = novo_q_value.clamp(0.0, 100.0) as u8;
-    
-    // Agente decide: Score abaixo de 60 reprova o repasse financeiro
     let aprovado = score_final >= 60;
 
     Json(RespostaAvaliacao {
         score_risco: score_final,
         aprovado_ia: aprovado,
         q_value_calculado: novo_q_value,
-        mensagem: format!("Matriz atualizada. Decisão tomada para o edital {}", payload.numero_edital),
+        mensagem: format!(
+            "Análise do edital {} concluída. Confiança do Agente: {:.2}%",
+            payload.numero_edital, novo_q_value
+        ),
     })
-}
-
-#[tokio::main]
-async fn main() {
-    let cors = CorsLayer::permissive();
-    let app = Router::new()
-        .route("/api/avaliar-risco", post(avaliar_risco))
-        .layer(cors);
-
-    let addr = SocketAddr::from(([127, 0, 0, 1], 8080));
-    println!("🚀 Agente RL (Rust) rodando em http://{}", addr);
-
-    let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
-    axum::serve(listener, app).await.unwrap();
 }

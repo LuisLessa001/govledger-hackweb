@@ -4,7 +4,8 @@ import { useState, useEffect, useRef } from 'react';
 import { 
   Activity, ShieldAlert, Gavel, Network, CheckCircle, 
   AlertTriangle, Lock, Link as LinkIcon, Cpu, Send, Bot, 
-  ChevronDown, ChevronUp, FileText, ChevronRight
+  ChevronDown, ChevronUp, FileText, ChevronRight,
+  Layers, Box, Home, Database
 } from 'lucide-react';
 import { 
   RadarChart, PolarGrid, PolarAngleAxis, Radar, 
@@ -20,6 +21,7 @@ interface PedidoAvaliacao {
   valor_solicitado: number;
   obras_concluidas: number;
   atrasos_anteriores: number;
+  valor_staking: number;
 }
 
 interface RespostaAvaliacao {
@@ -49,7 +51,34 @@ export default function GovLedgerSPA() {
   // --- Estados: Motor Rust & Formulário (Aba 1) ---
   const [loadingRust, setLoadingRust] = useState(false);
   const [resultadoIA, setResultadoIA] = useState<RespostaAvaliacao | null>(null);
-  const [form, setForm] = useState({ empresa: 'Odebrecht', obras: 12, atrasos: 2 });
+  // ---> COLE O CÓDIGO DO TERMINAL EXATAMENTE AQUI <---
+  const [terminalLogs, setLogsTerminal] = useState<string[]>([
+    "> Inicializando Motor Q-Learning (Rust)...",
+    "> Aguardando submissão de parâmetros na EVM..."
+  ]);
+  const terminalEndRef = useRef<HTMLDivElement>(null);
+
+  // Função para injetar logs com timestamp
+  const addLog = (msg: string) => {
+    setLogsTerminal(prev => [...prev, `[${new Date().toLocaleTimeString('pt-BR', { hour12: false })}] ${msg}`]);
+  };
+
+  // Efeito para auto-scroll do terminal
+  useEffect(() => {
+    terminalEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [terminalLogs]);
+  // ----------------------------------------------------
+
+
+
+  const [form, setForm] = useState({ 
+    empresa: 'Odebrecht', 
+    obras: 12, 
+    atrasos: 2,
+    valor_solicitado: 1000000,
+    valor_staking: 0,
+    numero_edital: '001/2026'
+  });
   const [modalMetaMask, setModalMetaMask] = useState<'idle' | 'confirming' | 'generating' | 'done'>('idle');
   const [txHash, setTxHash] = useState('');
 
@@ -64,49 +93,71 @@ export default function GovLedgerSPA() {
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // --- Estados do Terminal e Novos Pilares ---
-  const [logsTerminal, setLogsTerminal] = useState<string[]>([
-    '[SISTEMA] Motor Q-Learning (Rust) Inicializado na porta 8080.',
-    '[SISTEMA] Aguardando submissão de propostas criptografadas...'
-  ]);
+  
   const [sbtValidado, setSbtValidado] = useState(false);
   const [stakeDepositado, setStakeDepositado] = useState(false);
   
-  // Referência para o auto-scroll do terminal
-  const terminalEndRef = useRef<HTMLDivElement>(null);
+  // --- Estados de Segurança (Pilar 10 e 11) ---
+  const [isHalted, setIsHalted] = useState(false);
+  const [modalDenuncia, setModalDenuncia] = useState(false);
+  const [hashIPFS, setHashIPFS] = useState('');
+
+  // --- Estados da Transparência (NFT Dinâmico & IPFS) ---
+  const [faseObraNFT, setFaseObraNFT] = useState<1 | 2 | 3>(1); 
+  // 1 = Fundações, 2 = Estrutura, 3 = Acabamentos
+
 
   // Auto-scroll sempre que um novo log entra
   useEffect(() => {
     terminalEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [logsTerminal]);
+  }, [terminalLogs]);
 
-  // Função utilitária para injetar logs no terminal
-  const addLog = (mensagem: string) => {
-    setLogsTerminal(prev => [...prev, `[${new Date().toLocaleTimeString()}] ${mensagem}`]);
-  };
+
 
   // Auto-scroll do Chat
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [chatMessages]);
 
-  // --- Funções: Motor Rust ---
+  // --- Funções: HandleSimularIA ---
   const handleSimularIA = async () => {
+    if (isHalted) {
+      toast.error("ERRO: Rede paralisada pelo Circuit Breaker!");
+      addLog("> [CIRCUIT BREAKER] Tentativa de invocação da IA bloqueada pela trava de emergência.");
+      return;
+    }
+    if (form.valor_staking < form.valor_solicitado * 0.1) {
+      toast.error('Staking insuficiente. Caução mínima exigida: 10%.');
+      addLog(`[ERRO] Tentativa de submissão sem Skin in the Game. Staking exigido: R$ ${(form.valor_solicitado * 0.1).toLocaleString('pt-BR')}`);
+      return;
+    }
+
     setLoadingRust(true);
     setResultadoIA(null);
     toast.loading('Iniciando Motor Off-Chain (Rust)...', { id: 'rust' });
 
+    addLog(`> Gerando Prova ZK-SNARK para selagem dos dados do edital ${form.numero_edital}...`);
+
+    setTimeout(() => {
+      addLog(`> Processando Equação de Bellman para a entidade: ${form.empresa}...`);
+    }, 1200);
+
     setTimeout(() => {
       const isAprovado = form.atrasos < 3;
+      const scoreCalc = 85 - (form.atrasos * 10) + (form.obras * 2);
+      
       setResultadoIA({
-        score_risco: isAprovado ? 15 : 85,
+        score_risco: isAprovado ? Math.min(scoreCalc, 100) : scoreCalc,
         aprovado_ia: isAprovado,
         q_value_calculado: isAprovado ? 0.92 : 0.15,
         mensagem: isAprovado ? "Risco Aceitável. Autorizado." : "Risco Estrutural Detectado. Bloqueado."
       });
+      
+      addLog(`> [RESULTADO] Score calculado: ${scoreCalc}/100. Status: ${isAprovado ? 'APROVADO' : 'REJEITADO (Risco Elevado)'}`);
+      
       setLoadingRust(false);
       toast.success('Matriz Q-Learning processada.', { id: 'rust' });
-    }, 2500);
+    }, 3000);
   };
 
   
@@ -193,21 +244,46 @@ export default function GovLedgerSPA() {
       <Toaster position="top-right" toastOptions={{ style: { background: '#080808', color: '#fff', border: '1px solid #353535' } }} />
 
       {/* Header */}
-      <header className="border-b border-neutral-900 bg-[#020202] py-6 px-8 flex justify-between items-center relative overflow-hidden">
-        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-cyan-500 via-cyan-900 to-black"></div>
-        <div className="z-10">
-          <h1 className="text-4xl lg:text-5xl font-bold text-white tracking-tighter flex items-center gap-3">
-            <ShieldAlert className="text-cyan-500" size={40} />
-            Gov<span className="text-cyan-500">Ledger</span>
-          </h1>
-          <p className="text-sm mt-1 text-neutral-500 tracking-widest uppercase">
-            Equipe: <span className="text-cyan-400 font-bold">TrustNode</span> | HackWeb 2026
-          </p>
-        </div>
-        <div className="hidden lg:flex items-center gap-4 text-xs font-mono">
-          <div className="flex flex-col items-end">
-            <span className="text-emerald-500 flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div> Rust Node: Online</span>
-            <span className="text-cyan-500 flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-cyan-500 animate-pulse"></div> EVM: Sincronizado</span>
+      
+      <header className="border-b border-[#1A1A1A] bg-black/50 backdrop-blur-md sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Activity className="text-[#18B6F6]" size={28} />
+            <div>
+              <h1 className="text-xl font-bold tracking-tight">GovLedger</h1>
+              <p className="text-[10px] text-neutral-500 font-mono uppercase tracking-widest">Trustless State Infrastructure</p>
+            </div>
+          </div>
+          
+          {/* COLE O CÓDIGO DO CIRCUIT BREAKER AQUI (Como você enviou) */}
+          <div className="flex items-center gap-4">
+            {/* Botão Circuit Breaker (Pilar 11) */}
+            <button 
+              onClick={() => {
+                setIsHalted(!isHalted);
+                if (!isHalted) {
+                  toast.error("CIRCUIT BREAKER ATIVADO! Rede paralisada.");
+                  addLog("> [EMERGÊNCIA] Circuit Breaker acionado. Todas as operações suspensas.");
+                } else {
+                  toast.success("Rede normalizada.");
+                  addLog("> [SISTEMA] Circuit Breaker desativado por Multi-Sig. Operações retomadas.");
+                }
+              }}
+              className={`flex items-center gap-2 px-4 py-2 rounded font-bold text-sm transition-all ${
+                isHalted 
+                  ? 'bg-red-600 text-white animate-pulse shadow-[0_0_15px_rgba(220,38,38,0.5)]' 
+                  : 'bg-red-950/30 text-red-500 border border-red-900/50 hover:bg-red-900/50'
+              }`}
+            >
+              <AlertTriangle size={16} />
+              {isHalted ? 'REDE PARALISADA' : 'CIRCUIT BREAKER'}
+            </button>
+            
+            {/* Mock da Carteira Conectada */}
+            <div className="flex items-center gap-2 bg-[#1A1A1A] px-4 py-2 rounded border border-[#353535]">
+              <div className="w-2 h-2 rounded-full bg-[#18B6F6]"></div>
+              <span className="text-sm font-mono text-[#18B6F6]">0x8f7b...3c4d</span>
+            </div>
           </div>
         </div>
       </header>
@@ -259,8 +335,16 @@ export default function GovLedgerSPA() {
                   </div>
                   
                   <div className="space-y-4">
+                    {/* INÍCIO DO CÓDIGO QUE VOCÊ COLOU */}
                     <div>
-                      <label className="block text-xs font-medium text-neutral-300 mb-1">Empresa Contratada</label>
+                      <label className="block text-xs font-medium text-neutral-300 mb-1 flex items-center justify-between">
+                        Empresa Contratada
+                        {form.empresa.length > 2 && (
+                          <span className="flex items-center gap-1 text-purple-400 bg-purple-900/20 px-2 py-0.5 rounded text-[10px] font-bold border border-purple-900/50 animate-in fade-in">
+                            <Lock size={10} /> SBT Validado (Personhood)
+                          </span>
+                        )}
+                      </label>
                       <input 
                         type="text" 
                         value={form.empresa} 
@@ -269,6 +353,29 @@ export default function GovLedgerSPA() {
                       />
                     </div>
                     
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs font-medium text-neutral-300 mb-1">Valor Solicitado (R$)</label>
+                        <input 
+                          type="number" 
+                          value={form.valor_solicitado} 
+                          onChange={(e) => setForm({...form, valor_solicitado: Number(e.target.value)})}
+                          className="w-full bg-black border border-[#353535] rounded-lg p-3 text-sm text-white focus:border-[#18B6F6] outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-amber-500 mb-1 flex items-center gap-1">
+                          <ShieldAlert size={12}/> Caução/Staking (R$)
+                        </label>
+                        <input 
+                          type="number" 
+                          value={form.valor_staking} 
+                          onChange={(e) => setForm({...form, valor_staking: Number(e.target.value)})}
+                          className="w-full bg-black border border-amber-900/50 rounded-lg p-3 text-sm text-amber-500 focus:border-amber-500 outline-none"
+                        />
+                      </div>
+                    </div>
+
                     <div className="grid grid-cols-2 gap-4">
                       <div>
                         <label className="block text-xs font-medium text-neutral-300 mb-1">Histórico (Obras)</label>
@@ -298,6 +405,7 @@ export default function GovLedgerSPA() {
                       {loadingRust ? <Cpu className="animate-spin" size={20} /> : <Cpu size={20} />}
                       {loadingRust ? 'Analisando Q-Matrix...' : '1. Acionar Agente'}
                     </button>
+                    {/* FIM DO CÓDIGO QUE VOCÊ COLOU */}
                   </div>
                 </div>
 
@@ -394,20 +502,61 @@ export default function GovLedgerSPA() {
           )}
 
           {/* Aba 2: Tribunal DAO */}
+          
           {abaAtiva === 'tribunal' && (
-            <div className="space-y-6 animate-in fade-in duration-500">
+            <div className={`space-y-6 animate-in fade-in duration-500 ${isHalted ? 'opacity-50 pointer-events-none grayscale' : ''}`}>
               <div className="flex items-center justify-between bg-[#080808] border border-[#353535] p-6 rounded-xl">
                 <div>
                   <h2 className="text-xl font-bold text-white flex items-center gap-2">
                     <Gavel className="text-[#18B6F6]" /> Tribunal Cidadão (Slashing)
                   </h2>
-                  <p className="text-xs text-neutral-400 mt-1">Vote para reter o Vesting de empresas com irregularidades apontadas pela auditoria.</p>
+                  <p className="text-xs text-neutral-400 mt-1">Vote para reter o Vesting de empresas ou submeta uma denúncia.</p>
                 </div>
-                <div className="bg-cyan-950/30 border border-cyan-900 p-3 rounded-lg text-center">
-                  <span className="block text-xs text-cyan-500 mb-1">Seu Poder de Voto</span>
-                  <span className="text-lg font-bold text-white">450 GVLT</span>
+                <div className="flex items-center gap-4">
+                  {/* BOTÃO WHISTLEBLOWER (Pilar 10) */}
+                  <button
+                    onClick={() => setShowDenuncia(!showDenuncia)}
+                    className="flex items-center gap-2 bg-purple-950/40 border border-purple-900 text-purple-400 px-4 py-2 rounded-lg text-sm font-bold hover:bg-purple-900/60 transition-all"
+                  >
+                    <ShieldAlert size={16} />
+                    Canal Whistleblower
+                  </button>
+                  <div className="bg-cyan-950/30 border border-cyan-900 p-3 rounded-lg text-center">
+                    <span className="block text-xs text-cyan-500 mb-1">Seu Poder de Voto</span>
+                    <span className="text-lg font-bold text-white">450 GVLT</span>
+                  </div>
                 </div>
               </div>
+
+              {/* PAINEL DE DENÚNCIA (Whistleblower) */}
+              {showDenuncia && (
+                <div className="bg-[#050505] border border-purple-900/50 p-6 rounded-xl animate-in slide-in-from-top-4">
+                  <h3 className="text-purple-400 font-bold mb-2 flex items-center gap-2"><Lock size={16}/> Denúncia Anônima (Bounty Ativo)</h3>
+                  <p className="text-xs text-neutral-400 mb-4">Insira o Hash IPFS contendo o dossiê de provas (PDF/Imagens). Se a DAO validar a fraude matemática, 5% do Slashing retido será transferido para sua carteira anonimamente.</p>
+                  <div className="flex gap-3">
+                    <input
+                      type="text"
+                      placeholder="Ex: QmXyZ1... (Hash IPFS)"
+                      value={hashIPFS}
+                      onChange={(e) => setHashIPFS(e.target.value)}
+                      className="flex-1 bg-black border border-[#353535] rounded-lg p-3 text-white focus:border-purple-500 focus:outline-none font-mono text-sm"
+                    />
+                    <button
+                      onClick={() => {
+                        if(!hashIPFS) return toast.error("Insira o Hash IPFS da prova.");
+                        toast.success("Dossiê encriptado e submetido à rede!");
+                        addLog(`> [WHISTLEBLOWER] Dossiê submetido. IPFS Hash: ${hashIPFS.substring(0,8)}...`);
+                        addLog(`> Contrato de Bounty ativado. Aguardando validação do Oráculo...`);
+                        setHashIPFS('');
+                        setShowDenuncia(false);
+                      }}
+                      className="bg-purple-600 text-white px-6 py-3 rounded-lg font-bold hover:bg-purple-500 transition-colors"
+                    >
+                      Selar Denúncia
+                    </button>
+                  </div>
+                </div>
+              )}
 
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {casosDAO.map((caso) => {
@@ -443,10 +592,22 @@ export default function GovLedgerSPA() {
                       </div>
 
                       <div className="grid grid-cols-2 gap-3">
-                        <button className="bg-red-950/30 border border-red-900/50 text-red-400 hover:bg-red-900/40 py-2 rounded-lg text-sm font-bold transition-all">
+                        <button 
+                          onClick={() => {
+                            toast.success("Voto computado via Conviction Voting!");
+                            addLog(`> Voto registrado para SLA-Slashing no caso ${caso.id}`);
+                          }}
+                          className="bg-red-950/30 border border-red-900/50 text-red-400 hover:bg-red-900/40 py-2 rounded-lg text-sm font-bold transition-all"
+                        >
                           Votar para Punir
                         </button>
-                        <button className="bg-emerald-950/30 border border-emerald-900/50 text-emerald-400 hover:bg-emerald-900/40 py-2 rounded-lg text-sm font-bold transition-all">
+                        <button 
+                          onClick={() => {
+                            toast.success("Voto computado via Conviction Voting!");
+                            addLog(`> Voto registrado para absolvição no caso ${caso.id}`);
+                          }}
+                          className="bg-emerald-950/30 border border-emerald-900/50 text-emerald-400 hover:bg-emerald-900/40 py-2 rounded-lg text-sm font-bold transition-all"
+                        >
                           Votar Absolvição
                         </button>
                       </div>
@@ -459,11 +620,99 @@ export default function GovLedgerSPA() {
 
 {/* A parte 3 continuará a partir daqui, com a Aba 3 (Chat IA + Árvore de Rastreabilidade).*/}
 
-{/* Aba 3: Transparência, Chat IA e Rastreabilidade */}
+
+          {/* Aba 3: Transparência, Chat IA e Rastreabilidade */}
           {abaAtiva === 'transparencia' && (
-            <div className="space-y-6 animate-in fade-in duration-500">
+            <div className={`space-y-6 animate-in fade-in duration-500 ${isHalted ? 'opacity-50 pointer-events-none grayscale' : ''}`}>
               
-              {/* Botão de Toggle do Gráfico de Vesting */}
+              {/* --- INÍCIO DO NOVO BLOCO (PARTE 3): Gêmeo Digital (NFT) e IPFS --- */}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                
+                {/* Pilar 16: Dynamic NFT (Gêmeo Digital) */}
+                <div className="lg:col-span-2 bg-[#050505] border border-cyan-900/50 p-6 rounded-xl relative overflow-hidden">
+                  <div className="absolute top-0 right-0 bg-cyan-950/40 text-cyan-500 text-[10px] font-bold px-3 py-1 border-b border-l border-cyan-900/50 rounded-bl-lg uppercase">
+                    Pilar 16: ERC-1155 NFT Dinâmico
+                  </div>
+                  <h3 className="text-white font-bold mb-1 flex items-center gap-2"><Layers className="text-cyan-400" size={18} /> Gêmeo Digital da Obra</h3>
+                  <p className="text-xs text-neutral-400 mb-6">Os metadados do NFT atualizam on-chain conforme a validação do Oráculo, desbloqueando as tranches do Escrow.</p>
+                  
+                  <div className="flex items-center justify-between relative">
+                    <div className="absolute top-1/2 left-0 w-full h-1 bg-neutral-900 -z-10 -translate-y-1/2"></div>
+                    <div className="absolute top-1/2 left-0 h-1 bg-cyan-500 -z-10 -translate-y-1/2 transition-all duration-1000" style={{ width: faseObraNFT === 1 ? '0%' : faseObraNFT === 2 ? '50%' : '100%' }}></div>
+                    
+                    {/* Fase 1 */}
+                    <div className="flex flex-col items-center gap-2 bg-[#050505] px-2">
+                      <div className={`w-12 h-12 rounded-full flex items-center justify-center border-2 transition-colors ${faseObraNFT >= 1 ? 'border-cyan-500 bg-cyan-950/50 text-cyan-400 shadow-[0_0_15px_rgba(24,182,246,0.3)]' : 'border-neutral-800 bg-black text-neutral-600'}`}>
+                        <Box size={20} />
+                      </div>
+                      <span className={`text-[10px] font-bold uppercase ${faseObraNFT >= 1 ? 'text-cyan-400' : 'text-neutral-600'}`}>Fundações</span>
+                    </div>
+
+                    {/* Fase 2 */}
+                    <div className="flex flex-col items-center gap-2 bg-[#050505] px-2">
+                      <div className={`w-12 h-12 rounded-full flex items-center justify-center border-2 transition-colors ${faseObraNFT >= 2 ? 'border-cyan-500 bg-cyan-950/50 text-cyan-400 shadow-[0_0_15px_rgba(24,182,246,0.3)]' : 'border-neutral-800 bg-black text-neutral-600'}`}>
+                        <Layers size={20} />
+                      </div>
+                      <span className={`text-[10px] font-bold uppercase ${faseObraNFT >= 2 ? 'text-cyan-400' : 'text-neutral-600'}`}>Alvenaria</span>
+                    </div>
+
+                    {/* Fase 3 */}
+                    <div className="flex flex-col items-center gap-2 bg-[#050505] px-2">
+                      <div className={`w-12 h-12 rounded-full flex items-center justify-center border-2 transition-colors ${faseObraNFT >= 3 ? 'border-cyan-500 bg-cyan-950/50 text-cyan-400 shadow-[0_0_15px_rgba(24,182,246,0.3)]' : 'border-neutral-800 bg-black text-neutral-600'}`}>
+                        <Home size={20} />
+                      </div>
+                      <span className={`text-[10px] font-bold uppercase ${faseObraNFT >= 3 ? 'text-cyan-400' : 'text-neutral-600'}`}>Acabamentos</span>
+                    </div>
+                  </div>
+
+                  <div className="mt-6 flex justify-center">
+                    <button 
+                      onClick={() => {
+                        if(faseObraNFT < 3) {
+                          setFaseObraNFT((prev) => (prev + 1) as 1|2|3);
+                          addLog(`> [ORÁCULO] Novo laudo recebido. Metadados do NFT atualizados para a Fase ${faseObraNFT + 1}.`);
+                          addLog(`> [ESCROW] Tranche financeira desbloqueada e enviada via DAG.`);
+                          toast.success("Oráculo validou o progresso da obra!");
+                        } else {
+                          toast.success("A obra já está 100% concluída.");
+                        }
+                      }}
+                      className="bg-[#18B6F6]/10 border border-[#18B6F6]/50 text-[#18B6F6] hover:bg-[#18B6F6]/20 px-4 py-2 rounded text-xs font-bold transition-all"
+                    >
+                      Simular Oráculo (Avançar Fase)
+                    </button>
+                  </div>
+                </div>
+
+                {/* Pilar 2: IPFS Document Storage */}
+                <div className="bg-[#050505] border border-emerald-900/50 p-6 rounded-xl relative">
+                   <div className="absolute top-0 right-0 bg-emerald-950/40 text-emerald-500 text-[10px] font-bold px-3 py-1 border-b border-l border-emerald-900/50 rounded-bl-lg uppercase">
+                    Pilar 2: IPFS
+                  </div>
+                  <h3 className="text-white font-bold mb-1 flex items-center gap-2"><Database className="text-emerald-400" size={18} /> Vault Descentralizado</h3>
+                  <p className="text-xs text-neutral-400 mb-4">Laudos e contratos ancorados no InterPlanetary File System.</p>
+                  
+                  <div className="space-y-3">
+                    <div className="bg-black border border-[#353535] p-3 rounded flex items-center justify-between group cursor-pointer hover:border-emerald-500/50 transition-colors">
+                      <div className="flex items-center gap-2">
+                        <FileText size={14} className="text-neutral-500 group-hover:text-emerald-400" />
+                        <span className="text-[11px] text-white font-mono">Contrato_Principal.pdf</span>
+                      </div>
+                      <span className="text-[9px] text-emerald-600 font-mono bg-emerald-950/30 px-1 py-0.5 rounded">QmYwAP...8vA</span>
+                    </div>
+                    <div className="bg-black border border-[#353535] p-3 rounded flex items-center justify-between group cursor-pointer hover:border-emerald-500/50 transition-colors">
+                      <div className="flex items-center gap-2">
+                        <FileText size={14} className="text-neutral-500 group-hover:text-emerald-400" />
+                        <span className="text-[11px] text-white font-mono">Laudo_Engenharia_F1.pdf</span>
+                      </div>
+                      <span className="text-[9px] text-emerald-600 font-mono bg-emerald-950/30 px-1 py-0.5 rounded">QmZxTb...2qW</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              {/* --- FIM DO NOVO BLOCO (PARTE 3) --- */}
+              
+              {/* Botão de Toggle do Gráfico de Vesting ORIGINAL */}
               <div className="flex justify-end">
                 <button 
                   onClick={() => setShowVestingChart(!showVestingChart)}
@@ -475,7 +724,7 @@ export default function GovLedgerSPA() {
                 </button>
               </div>
 
-              {/* Gráfico de Vesting Expansível */}
+              {/* Gráfico de Vesting Expansível ORIGINAL */}
               {showVestingChart && (
                 <div className="bg-[#080808] border border-[#353535] rounded-xl p-6 h-64 animate-in fade-in slide-in-from-top-2">
                   <h3 className="text-sm font-bold text-white mb-4">Projeção de Liberação do Escrow (SLA)</h3>
@@ -497,8 +746,7 @@ export default function GovLedgerSPA() {
                 </div>
               )}
 
-              {/* Grid 2 Colunas: Chat (Esquerda) e Árvore (Direita) */}
-              
+              {/* Grid 2 Colunas: Chat (Esquerda) e Árvore (Direita) ORIGINAL */}
               <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
                 
                 
@@ -802,42 +1050,26 @@ export default function GovLedgerSPA() {
         
         
 
-        {/* Terminal RL (Rust Backend) - Estilo VS Code Bottom Panel */}
-        <div className="bg-[var(--color-terminal-bg, #020202)] border-t border-neutral-900 h-48 flex flex-col w-full shadow-[0_-5px_20px_rgba(0,0,0,0.5)] z-20">
-          <div className="px-5 py-2 border-b border-neutral-900 flex items-center justify-between bg-[#050505]">
-            <div className="flex items-center gap-3">
-              <Activity className="text-emerald-500" size={14} />
-              <h2 className="text-xs font-bold text-white uppercase tracking-widest">Terminal RL </h2>
-            </div>
-            <div className="flex gap-4 text-[10px] font-mono text-neutral-500">
-              <span>Porta: 8080</span>
-              <span>Q-Learning: Ativo</span>
-            </div>
+        
+        {/* Terminal RL no Rodapé */}
+        <div className="mt-8 bg-[#050505] border border-[#353535] rounded-xl p-4 shadow-2xl">
+          <div className="flex items-center gap-2 mb-2 border-b border-[#353535] pb-2">
+            <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
+            <span className="text-xs font-bold text-neutral-500 uppercase tracking-widest">Motor Q-Learning / Logs da EVM</span>
           </div>
-          
-          {/* Área de Log do Terminal (Horizontal) */}
-          <div className="flex-1 p-4 font-mono text-[11px] overflow-y-auto custom-scrollbar text-neutral-400 space-y-1.5 flex flex-col flex-wrap content-start gap-x-12">
-            <p className="text-[#18B6F6]">&gt; Inicializando GovLedger Engine v2.0.4</p>
-            <p>&gt; Conectando ao nó Web3 (Foundry)... <span className="text-white font-bold">OK</span></p>
-            <p>&gt; Carregando pesos do Q-Learning...</p>
-            
-            {loadingRust && (
-              <>
-                <p className="text-amber-500">&gt; [EVENTO] Submissão: {form.empresa} (Atrasos: {form.atrasos})</p>
-                <p className="text-amber-500 animate-pulse">&gt; Aplicando Equação de Bellman e Calculando Q(s,a)...</p>
-              </>
-            )}
-
-            {resultadoIA && !loadingRust && (
-              <>
-                <p>&gt; Convergência: <span className="text-white font-bold">{resultadoIA.q_value_calculado}</span></p>
-                {resultadoIA.aprovado_ia ? (
-                  <p className="text-emerald-500 font-bold">&gt; AÇÃO: AUTORIZAR_WEB3 (Risco: {resultadoIA.score_risco}%)</p>
-                ) : (
-                  <p className="text-red-500 font-bold">&gt; AÇÃO: REJEITAR_ALTO_RISCO (Risco: {resultadoIA.score_risco}%)</p>
-                )}
-              </>
-            )}
+          <div className="font-mono text-[11px] leading-relaxed h-[100px] overflow-y-auto custom-scrollbar">
+            {terminalLogs.map((log, idx) => (
+              <div key={idx} className={`${
+                log.includes('REJEITADO') || log.includes('ERRO') ? 'text-red-400' : 
+                log.includes('APROVADO') ? 'text-emerald-400' : 
+                log.includes('ZK-SNARK') || log.includes('Bellman') ? 'text-cyan-400' : 
+                'text-neutral-400'
+              } mb-1`}>
+                {log}
+              </div>
+            ))}
+            {/* Div invisível para fazer o auto-scroll funcionar */}
+            <div ref={terminalEndRef} />
           </div>
         </div>
       </main>
