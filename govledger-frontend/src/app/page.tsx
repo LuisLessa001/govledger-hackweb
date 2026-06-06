@@ -529,7 +529,7 @@ export default function GovLedgerSPA() {
               </div>
 
               {/* PAINEL DE DENÚNCIA (Whistleblower) */}
-              {showDenuncia && (
+              {modalDenuncia && (
                 <div className="bg-[#050505] border border-purple-900/50 p-6 rounded-xl animate-in slide-in-from-top-4">
                   <h3 className="text-purple-400 font-bold mb-2 flex items-center gap-2"><Lock size={16}/> Denúncia Anônima (Bounty Ativo)</h3>
                   <p className="text-xs text-neutral-400 mb-4">Insira o Hash IPFS contendo o dossiê de provas (PDF/Imagens). Se a DAO validar a fraude matemática, 5% do Slashing retido será transferido para sua carteira anonimamente.</p>
