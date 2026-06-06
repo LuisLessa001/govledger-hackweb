@@ -46,3 +46,5 @@ govledger-frontend/src/app/Backup-frontend/
 # ARTEFATOS ANTIGOS/LOCAIS DE CONTRATO
 # =========================
 govledger-contracts/ignition/deployments/
+
+slidev/
