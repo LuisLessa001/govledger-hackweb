@@ -47,4 +47,4 @@ govledger-frontend/src/app/Backup-frontend/
 # =========================
 govledger-contracts/ignition/deployments/
 
-slidev/
+slidev/Backup-frontend/

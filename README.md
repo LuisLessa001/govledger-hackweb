@@ -8,6 +8,8 @@ Membro: Luís André Oliveira Lessa
 
 O **GovLedger** é uma infraestrutura descentralizada desenvolvida para eliminar fraudes, atrasos e inadimplência em licitações e obras públicas. Utilizando um motor preditivo de alta performance construído em Rust e o conceito de *Staking* em Blockchain, o sistema cria um ambiente onde o risco é calculado matematicamente e a garantia de execução é imutável.
 
+Link do vídeo: https://youtu.be/K5brBVFf3P0
+
 ---
 
 ## 🛠️ Arquitetura Técnica
