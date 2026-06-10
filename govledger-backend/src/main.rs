@@ -57,7 +57,7 @@ async fn main() {
         .layer(cors)
         .with_state(shared_state);
 
-    let addr = SocketAddr::from(([0, 0, 0, 0], 3000));
+    let addr = SocketAddr::from(([0, 0, 0, 0], 8081));
     println!(">>> GovLedger Backend rodando em http://{}", addr);
 
     let listener = tokio::net::TcpListener::bind(addr).await.unwrap();

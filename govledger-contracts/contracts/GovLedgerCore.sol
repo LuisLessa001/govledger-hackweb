@@ -68,7 +68,7 @@ contract GovLedgerCore is ReentrancyGuard {
     // Armazenamento
     mapping(uint256 => MedicaoObra) public medicoes;
     mapping(uint256 => GarantiaVesting) public cofresVestingPorMedicao;
-    mapping(uint256 => RastreabilidadeSuprimentos) public cadeiasDeSuprimento;
+    mapping(uint256 => RastreabilidadeSuprimentos) cadeiasDeSuprimento;
     
     uint256 public totalMedicoes;
 
@@ -109,6 +109,30 @@ contract GovLedgerCore is ReentrancyGuard {
         oraculoAmbiental = IOraculoAmbiental(_oraculoAmbiental);
         oraculoPreco = AggregatorV3Interface(_oraculoPrecoChainlink);
     }
+
+
+    // Evento para rastrear o empenho na blockchain
+    event ContratoEmpenhado(string empresa, string numeroEdital, uint256 valorStaking, uint8 scoreIA);
+
+    // Função REAL, recebe fundos (payable) e trava no Escrow
+    function iniciarContrato(
+        string memory _empresa,
+        string memory _numeroEdital,
+        uint8 _scoreRisco
+    ) public payable {
+        // Exige que a carteira envie um valor maior que zero
+        require(msg.value > 0, "Staking (Caucao) e obrigatorio");
+        
+        // Exige que a IA tenha aprovado (score >= 60)
+        require(_scoreRisco >= 60, "Risco reprovado pela IA");
+
+        // O dinheiro enviado (msg.value) fica automaticamente retido no saldo deste Smart Contract (Escrow)
+        
+        emit ContratoEmpenhado(_empresa, _numeroEdital, msg.value, _scoreRisco);
+    }
+
+
+
 
     // Registra medição, SLA e fornecedores
     function registrarMedicao(
@@ -232,6 +256,13 @@ contract GovLedgerCore is ReentrancyGuard {
         
         if (preco <= 0) revert OraculoPrecoInativo();
         return uint256(preco * 1e10); 
+    }
+
+
+    // Função manual para o Frontend ler os arrays dinâmicos
+    function obterCadeiaDeSuprimentos(uint256 _id) external view returns (address[] memory, uint256[] memory) {
+        RastreabilidadeSuprimentos storage cadeia = cadeiasDeSuprimento[_id];
+        return (cadeia.fornecedores, cadeia.valoresDistribuidosFiat);
     }
 
     // Recebe depósitos
